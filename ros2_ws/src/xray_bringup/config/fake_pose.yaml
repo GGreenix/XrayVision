@@ -1,0 +1,9 @@
+fake_pose_publisher:
+  ros__parameters:
+    frame_id: map
+    child_frame_id: base_link
+    rate_hz: 30.0
+    radius_m: 12.0
+    angular_speed_rad_s: 0.15
+    altitude_m: 8.0
+

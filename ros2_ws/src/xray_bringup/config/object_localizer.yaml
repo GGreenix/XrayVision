@@ -1,0 +1,8 @@
+object_localizer:
+  ros__parameters:
+    world_frame: map
+    horizontal_fov_deg: 90.0
+    vertical_fov_deg: 60.0
+    min_range_m: 1.0
+    camera_translation_m: [0.2, 0.0, 0.0]
+    camera_mount_rpy_deg: [0.0, 45.0, 0.0]

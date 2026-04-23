@@ -1,0 +1,65 @@
+# --- Environment / secrets ---
+.env
+
+# --- ROS 2 build artifacts ---
+build/
+install/
+log/
+logs/
+bags/
+models/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# --- Editor / OS ---
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+.vs/
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+
+# --- Unity (generated per-machine, never commit) ---
+unity/**/[Ll]ibrary/
+unity/**/[Tt]emp/
+unity/**/[Oo]bj/
+unity/**/[Bb]uild/
+unity/**/[Bb]uilds/
+unity/**/[Ll]ogs/
+unity/**/[Uu]ser[Ss]ettings/
+unity/**/[Mm]emoryCaptures/
+unity/**/[Rr]ecordings/
+
+# Unity-generated project/solution files (regenerated from Assets + ProjectSettings)
+unity/**/*.csproj
+unity/**/*.unityproj
+unity/**/*.sln
+unity/**/*.suo
+unity/**/*.tmp
+unity/**/*.user
+unity/**/*.userprefs
+unity/**/*.pidb
+unity/**/*.booproj
+unity/**/*.svd
+unity/**/*.pdb
+unity/**/*.mdb
+unity/**/*.opendb
+unity/**/*.VC.db
+
+# Unity package manager cache (can be regenerated)
+unity/**/[Pp]ackages/manifest.json.bak
+
+# Unity crash / asset store / collab
+unity/**/sysinfo.txt
+unity/**/*.apk
+unity/**/*.aab
+unity/**/*.unitypackage
+unity/**/*.app
+unity/**/crashlytics-build.properties
+unity/**/AssetStoreTools*
