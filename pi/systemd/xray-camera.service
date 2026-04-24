@@ -1,0 +1,17 @@
+[Unit]
+Description=XrayVision camera station (ROS2 camera + static pose)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+Group=__USER__
+Environment=ROS_DOMAIN_ID=42
+Environment=RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+ExecStart=/bin/bash -lc "source /opt/ros/humble/setup.bash && source /opt/xray/ros2_ws/install/setup.bash && ros2 launch xray_bringup camera_station.launch.py"
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

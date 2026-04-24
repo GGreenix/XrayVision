@@ -275,15 +275,6 @@
       },
       "url": "https://packages.unity.com"
     },
-    "com.unity.xr.legacyinputhelpers": {
-      "version": "3.0.1",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.modules.xr": "1.0.0"
-      },
-      "url": "https://packages.unity.com"
-    },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
       "depth": 0,
