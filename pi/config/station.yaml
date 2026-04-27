@@ -1,0 +1,52 @@
+# Pi station configuration. Read by xray_pi.station at startup.
+# All paths are absolute — installer copies the calibration into /opt/xray.
+
+calibration_file: /opt/xray/config/stereo_calibration.yaml
+
+capture:
+  width: 1600
+  height: 1300
+  fps: 20.0
+  # Stable USB device paths. /dev/video0 etc. work but the index changes
+  # across reboots; use the by-id symlink so the left/right assignment
+  # never flips. Find them with: ls -l /dev/v4l/by-id/
+  left_device:  /dev/v4l/by-id/usb-Arducam_LEFT-video-index0
+  right_device: /dev/v4l/by-id/usb-Arducam_RIGHT-video-index0
+
+sgbm:
+  # 1=full res (very slow on Pi 5), 2=half (recommended), 3=third (fastest).
+  downscale: 2
+  min_disparity: 0
+  num_disparities: 96       # multiple of 16
+  block_size: 7
+  uniqueness_ratio: 10
+  speckle_window_size: 100
+  speckle_range: 2
+  min_depth_m: 0.3
+  max_depth_m: 8.0
+
+pose:
+  # Where the LEFT camera's optical center sits in the world frame.
+  position_m: [0.0, 0.0, 1.5]
+  # Roll/pitch/yaw of the camera body around the world axes (degrees).
+  rpy_deg: [0.0, 0.0, 0.0]
+  # Extra tilt of the camera rig relative to the body (e.g. pitch -10
+  # if you angle the rig downward).
+  mount_rpy_deg: [0.0, 0.0, 0.0]
+
+detector:
+  model_path: yolov8n.pt
+  confidence_threshold: 0.35
+  iou_threshold: 0.5
+  imgsz: 640
+  device: ""               # "" = auto, "cpu", "cuda:0"
+  allowed_classes: []      # empty = all classes
+  sample_bbox_bottom: false  # true = ground-only fallback
+  depth_window: 4
+
+server:
+  host: 0.0.0.0
+  port: 8765
+  detection_rate_hz: 10.0   # YOLO + localization cycle target
+  video_rate_hz: 15.0       # MJPEG stream rate
+  video_jpeg_quality: 75

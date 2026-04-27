@@ -23,6 +23,7 @@ class YoloDetector(Node):
     def __init__(self) -> None:
         super().__init__("yolo_detector")
 
+        self.declare_parameter("input_topic", "/xray/camera/image/compressed")
         self.declare_parameter("model_path", "yolov8n.pt")
         self.declare_parameter("confidence_threshold", 0.35)
         self.declare_parameter("iou_threshold", 0.5)
@@ -58,9 +59,9 @@ class YoloDetector(Node):
         self.publisher = self.create_publisher(
             Detection2DArray, "/xray/perception/detections_2d", 10
         )
-        self.create_subscription(
-            CompressedImage, "/xray/camera/image/compressed", self.on_image, 10
-        )
+        input_topic = str(self.get_parameter("input_topic").value)
+        self.create_subscription(CompressedImage, input_topic, self.on_image, 10)
+        self.get_logger().info(f"YOLO subscribing to {input_topic}")
 
     def on_image(self, message: CompressedImage) -> None:
         try:

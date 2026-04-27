@@ -21,14 +21,12 @@ setup(
             "fake_pose_publisher = xray_core.fake_pose_publisher:main",
             "fake_detector = xray_core.fake_detector:main",
             "object_localizer = xray_core.object_localizer:main",
-            "static_camera_localizer = xray_core.static_camera_localizer:main",
             "moving_camera_localizer = xray_core.moving_camera_localizer:main",
             "yolo_detector = xray_core.yolo_detector:main",
             "world_model = xray_core.world_model:main",
             "drone_pilot = xray_core.drone_pilot:main",
-            "camera_publisher = xray_core.camera_publisher:main",
             "static_pose_publisher = xray_core.static_pose_publisher:main",
+            "pi_bridge = xray_core.pi_bridge:main",
         ]
     },
 )
-

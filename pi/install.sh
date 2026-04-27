@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Idempotent installer for the XrayVision camera station on a Raspberry Pi 5.
-# Target OS: Ubuntu 22.04 LTS Server (arm64). Run with sudo.
+# Idempotent installer for the XrayVision Pi station.
+# Target OS: Raspberry Pi OS Bookworm (64-bit) on a Pi 5.
+# (Ubuntu 22.04 also works; nothing in this script is ROS-specific.)
 #
 # What it does:
-#   1. Installs ROS 2 Humble (ros-base).
-#   2. Installs picamera2 + CycloneDDS RMW.
-#   3. Builds the xray_core + xray_bringup packages.
-#   4. Installs and enables a systemd service that auto-starts the camera station.
+#   1. Installs python3-picamera2 (apt; needed for the libcamera bindings).
+#   2. pip-installs ultralytics + opencv + aiohttp + pyyaml.
+#   3. Copies xray_pi/ + config/ to /opt/xray.
+#   4. Installs and enables a systemd service that starts the station on boot.
 #
 # What it does NOT do:
-#   - Configure network (WiFi/Ethernet must already be up).
-#   - Set up secrets or any firewall rules.
+#   - Configure WiFi / network.
+#   - Configure the Arducam dtoverlay (do that in /boot/firmware/config.txt
+#     per Arducam's OV2311 docs, then reboot).
 
 set -euo pipefail
 
@@ -21,70 +23,49 @@ fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 INSTALL_DIR="/opt/xray"
-WORKSPACE_DIR="$INSTALL_DIR/ros2_ws"
-SERVICE_USER="${SUDO_USER:-ubuntu}"
+SERVICE_USER="${SUDO_USER:-pi}"
 
-echo "=== Step 1/5: apt update and base deps ==="
+echo "=== Step 1/4: apt deps ==="
 apt update
 apt install -y \
-    curl gnupg lsb-release software-properties-common \
-    locales git
+    python3-pip \
+    python3-numpy \
+    python3-yaml \
+    v4l-utils
+# Add the service user to the video group so they can open /dev/video*.
+usermod -aG video "$SERVICE_USER" || true
 
-locale-gen en_US.UTF-8
-update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
-add-apt-repository universe -y
-
-echo "=== Step 2/5: ROS 2 Humble apt repo ==="
-if [ ! -f /usr/share/keyrings/ros-archive-keyring.gpg ]; then
-    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
-        -o /usr/share/keyrings/ros-archive-keyring.gpg
-fi
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo "$UBUNTU_CODENAME") main" \
-    > /etc/apt/sources.list.d/ros2.list
-
-apt update
-
-echo "=== Step 3/5: install ROS 2 + picamera2 ==="
-apt install -y \
-    ros-humble-ros-base \
-    ros-humble-rmw-cyclonedds-cpp \
-    ros-humble-rosidl-default-generators \
-    ros-humble-tf2-ros \
-    python3-colcon-common-extensions \
-    python3-picamera2 --no-install-recommends
-
-# Perception deps (YOLO + OpenCV). Installed via pip because Ubuntu 22.04
-# doesn't package ultralytics, and the apt opencv is too old for some ops.
-apt install -y python3-pip python3-numpy
-sudo -u "${SUDO_USER:-ubuntu}" pip3 install --user \
+echo "=== Step 2/4: pip deps (as $SERVICE_USER) ==="
+sudo -u "$SERVICE_USER" pip3 install --user --break-system-packages \
     "ultralytics>=8.1" \
-    "opencv-python-headless>=4.8"
+    "opencv-python-headless>=4.8" \
+    "aiohttp>=3.9" \
+    "pyyaml>=6.0"
 
-echo "=== Step 4/5: sync and build the workspace ==="
-mkdir -p "$WORKSPACE_DIR/src"
-rsync -a --delete \
-    "$REPO_ROOT/ros2_ws/src/xray_interfaces" \
-    "$REPO_ROOT/ros2_ws/src/xray_core" \
-    "$REPO_ROOT/ros2_ws/src/xray_bringup" \
-    "$WORKSPACE_DIR/src/"
+echo "=== Step 3/4: copy xray_pi to $INSTALL_DIR ==="
+mkdir -p "$INSTALL_DIR"
+rsync -a --delete "$REPO_ROOT/pi/xray_pi" "$INSTALL_DIR/"
+mkdir -p "$INSTALL_DIR/config"
+# Don't clobber an existing calibration file — only copy if missing.
+if [ ! -f "$INSTALL_DIR/config/stereo_calibration.yaml" ]; then
+    if [ -f "$REPO_ROOT/pi/config/stereo_calibration.yaml" ]; then
+        cp "$REPO_ROOT/pi/config/stereo_calibration.yaml" "$INSTALL_DIR/config/"
+    fi
+fi
+cp "$REPO_ROOT/pi/config/station.yaml" "$INSTALL_DIR/config/"
 chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR"
 
-sudo -u "$SERVICE_USER" bash -lc "
-    source /opt/ros/humble/setup.bash
-    cd '$WORKSPACE_DIR'
-    colcon build --symlink-install --packages-select xray_interfaces xray_core xray_bringup
-"
-
-echo "=== Step 5/5: install and enable systemd service ==="
-install -m 644 "$REPO_ROOT/pi/systemd/xray-camera.service" \
-    /etc/systemd/system/xray-camera.service
-sed -i "s|__USER__|$SERVICE_USER|g" /etc/systemd/system/xray-camera.service
+echo "=== Step 4/4: install and enable systemd service ==="
+install -m 644 "$REPO_ROOT/pi/systemd/xray-station.service" \
+    /etc/systemd/system/xray-station.service
+sed -i "s|__USER__|$SERVICE_USER|g" /etc/systemd/system/xray-station.service
 systemctl daemon-reload
-systemctl enable xray-camera.service
+systemctl enable xray-station.service
 
 echo ""
 echo "=== Install complete ==="
-echo "Start now:   sudo systemctl start xray-camera"
-echo "Check logs:  journalctl -u xray-camera -f"
-echo "Edit pose:   $WORKSPACE_DIR/src/xray_bringup/config/camera_station.yaml"
-echo "            (then: cd $WORKSPACE_DIR && colcon build && sudo systemctl restart xray-camera)"
+echo "Calibrate stereo:  python3 $REPO_ROOT/pi/tools/stereo_calibrate.py \\"
+echo "                       --output $INSTALL_DIR/config/stereo_calibration.yaml"
+echo "Start now:         sudo systemctl start xray-station"
+echo "Check logs:        journalctl -u xray-station -f"
+echo "Verify in browser: http://<pi-ip>:8765/video.mjpg"

@@ -1,0 +1,15 @@
+# Placeholder stereo calibration. Run pi/tools/stereo_calibrate.py and
+# overwrite this file. The values below correspond to identity / no
+# distortion at 1600x1300 with an 8 cm baseline; the depth math will
+# work but will not be metrically accurate until you calibrate.
+
+image_width: 1600
+image_height: 1300
+left:
+  K: [1400.0, 0.0, 800.0, 0.0, 1400.0, 650.0, 0.0, 0.0, 1.0]
+  D: [0.0, 0.0, 0.0, 0.0, 0.0]
+right:
+  K: [1400.0, 0.0, 800.0, 0.0, 1400.0, 650.0, 0.0, 0.0, 1.0]
+  D: [0.0, 0.0, 0.0, 0.0, 0.0]
+R: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+T: [-0.08, 0.0, 0.0]

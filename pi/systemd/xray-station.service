@@ -1,0 +1,17 @@
+[Unit]
+Description=XrayVision Pi station (stereo + YOLO + HTTP/WS server)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+Group=__USER__
+WorkingDirectory=/opt/xray
+ExecStart=/usr/bin/python3 -m xray_pi.station --config /opt/xray/config/station.yaml
+Environment=PYTHONPATH=/opt/xray
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
