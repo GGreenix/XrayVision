@@ -30,22 +30,25 @@ out of the box by the kernel's `uvcvideo` driver.
 ### Identify your cameras
 
 USB enumeration is order-dependent (`/dev/video0` and `/dev/video2` may
-swap on reboot), so always reference the cameras by their stable
-`/dev/v4l/by-id/` symlinks:
+swap on reboot). **Many Arducam OV9281 modules ship with identical USB
+serial numbers**, so `/dev/v4l/by-id/` will collide and only show one
+camera even when both are plugged in. Use `/dev/v4l/by-path/` instead —
+it identifies cameras by USB port:
 
 ```bash
-ls -l /dev/v4l/by-id/
-# usb-Arducam_OV9281_USB_Camera_SN12345-video-index0 -> ../../video0
-# usb-Arducam_OV9281_USB_Camera_SN67890-video-index0 -> ../../video2
+ls -l /dev/v4l/by-path/
+# platform-xhci-hcd.0-usb-0:1:1.0-video-index0 -> ../../video2
+# platform-xhci-hcd.1-usb-0:1:1.0-video-index0 -> ../../video0
 ```
 
-Pick which serial number is "left" vs "right" (mark the housings) and
-paste the by-id paths into `pi/config/station.yaml`.
+Mark the physical USB ports "LEFT" and "RIGHT" with tape so you always
+plug each camera into the same port. Paste the two by-path values into
+`pi/config/station.yaml` (`capture.left_device` / `capture.right_device`).
 
 ### Verify a camera works
 
 ```bash
-v4l2-ctl --device /dev/v4l/by-id/usb-Arducam_...-video-index0 \
+v4l2-ctl --device /dev/v4l/by-path/platform-xhci-hcd.0-usb-0:1:1.0-video-index0 \
          --list-formats-ext
 ```
 
@@ -182,9 +185,17 @@ effect. Check with `groups` — `video` should be in the list.
 
 ### Left/right swapped after reboot
 
-You're using `/dev/video0` / `/dev/video2` instead of the `by-id`
-paths. Switch to the symlinks under `/dev/v4l/by-id/` — they're tied to
-each camera's USB serial number and never change.
+You're using `/dev/video0` / `/dev/video2` instead of the `by-path`
+paths. Switch to the symlinks under `/dev/v4l/by-path/` — they're tied
+to each USB port and never change as long as you plug each camera into
+the same port.
+
+### Left/right swapped in the feed (but paths are stable)
+
+You're plugging the cameras into the wrong ports, or the LEFT/RIGHT
+assignment in `station.yaml` is reversed. Easiest fix: swap the
+`left_device` and `right_device` values in `/opt/xray/config/station.yaml`
+and restart the service.
 
 ### Both cameras together drop frames at full resolution
 
