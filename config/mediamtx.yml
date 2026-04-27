@@ -1,9 +1,0 @@
-logLevel: info
-rtspAddress: :8554
-webrtcAddress: :8889
-api: yes
-apiAddress: :9997
-paths:
-  drone_cam:
-    source: publisher
-

@@ -1,6 +1,4 @@
-"""Vendored from ros2_ws/src/xray_core/xray_core/math_utils.py.
-
-Kept identical so the localization math behaves the same on Pi and PC.
+"""Small math helpers for 3D rotations and vector ops.
 """
 
 import math

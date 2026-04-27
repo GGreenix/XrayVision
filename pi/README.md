@@ -1,18 +1,9 @@
-# XrayVision Pi station (no-ROS edition)
+# XrayVision Pi station
 
 Runs a fixed-pose stereo camera station on a Raspberry Pi 5. Single
 Python process: dual capture → SGBM depth → YOLO → 3D world positions
-→ HTTP/WebSocket server. The PC's ROS stack consumes the stream via a
-small bridge node, so everything downstream (world_model, Unity bridge)
-is unchanged.
-
-## Why this isn't ROS
-
-ROS adds ~500 MB of install, locks the Pi to Ubuntu 22.04, and brings
-DDS-over-WiFi quirks — none of which the Pi side actually needs. It has
-one publisher (perception output) and one consumer (the PC bridge). A
-plain HTTP/WebSocket server does the job in ~700 lines and runs on
-Raspberry Pi OS Bookworm out of the box.
+→ HTTP/WebSocket server. Unity connects directly to the Pi's HTTP/WS
+endpoints — no ROS, no broker, no docker.
 
 ## Hardware
 
@@ -152,28 +143,12 @@ with connect('ws://<pi-ip>:8765/stream') as ws:
 "
 ```
 
-## Wire it into the PC ROS stack
+## Consume from Unity
 
-```bash
-docker compose exec ground bash -lc "
-  source /opt/ros/humble/setup.bash &&
-  source /opt/xray/ros2_ws/install/setup.bash &&
-  ros2 launch xray_bringup pi_bridge.launch.py
-"
-```
-
-The `pi_bridge` node:
-- Pulls `/video.mjpg` and republishes as `/xray/camera/image/compressed`.
-- Connects to `/stream` and republishes as `/xray/perception/objects_raw`
-  (`TrackedObjectArray`).
-- Fetches `/pose` once and republishes as `/xray/uav/odom`.
-
-Override the Pi address via parameter file or CLI:
-
-```bash
-ros2 launch xray_bringup pi_bridge.launch.py \
-    --ros-args -p pi_host:=192.168.1.42 -p pi_port:=8765
-```
+The Unity project (`unity/XrayVisionVR`) ships with a `PiClient` MonoBehaviour
+that reads `/healthz`, `/pose`, and the `/stream` WebSocket directly. Set its
+`host` field to your Pi's IP (e.g. `10.0.0.101`) — fallbacks are `pi.local`
+and `pi`. No ROS, no docker, no bridge node.
 
 ## Troubleshooting
 
@@ -224,6 +199,6 @@ it to ~25 Hz at the cost of depth resolution.
 
 Pi 5 has no GPU; `yolov8n` runs at ~5–10 fps on CPU. Faster options:
 drop `imgsz` (e.g., 416), or set `allowed_classes: [person]` to filter
-early. For real speed, run YOLO on the **PC** instead — add a
-`yolo_detector` ROS node on the ground side that consumes the bridge's
-republished image and ignore the Pi's WebSocket detections.
+early. For real speed, run YOLO on the **PC** instead — pull
+`/video/left.mjpg` from Unity (or a separate Python helper) and run
+detection there, ignoring the Pi's WebSocket detection stream.

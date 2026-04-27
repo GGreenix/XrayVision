@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Idempotent installer for the XrayVision Pi station.
 # Target OS: Raspberry Pi OS Bookworm (64-bit) on a Pi 5.
-# (Ubuntu 22.04 also works; nothing in this script is ROS-specific.)
+# (Ubuntu 22.04 also works.)
 #
 # What it does:
 #   1. Installs python3-picamera2 (apt; needed for the libcamera bindings).

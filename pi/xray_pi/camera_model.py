@@ -1,4 +1,4 @@
-"""Vendored / simplified pinhole model. See ros2_ws/.../localization/camera_model.py."""
+"""Simplified pinhole camera model."""
 
 from dataclasses import dataclass
 

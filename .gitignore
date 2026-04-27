@@ -1,13 +1,9 @@
 # --- Environment / secrets ---
 .env
 
-# --- ROS 2 build artifacts ---
+# --- Python build artifacts ---
 build/
 install/
-log/
-logs/
-bags/
-models/
 __pycache__/
 *.pyc
 *.pyo
