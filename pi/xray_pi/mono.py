@@ -81,6 +81,7 @@ class MonoPipeline:
                     left_rect=img,
                     depth=self._zero_depth,
                     fx=self.fx, fy=self.fy, cx=self.cx, cy=self.cy,
+                    left_raw=img,
                 )
                 with self._lock:
                     self._latest = frame

@@ -54,8 +54,13 @@ class Server:
         self._no_signal_jpeg = _make_no_signal_jpeg(video_jpeg_quality)
 
         self.app = web.Application()
+        self.app.router.add_get("/", self._index)
         self.app.router.add_get("/healthz", self._healthz)
         self.app.router.add_get("/video.mjpg", self._video_mjpg)
+        self.app.router.add_get("/video/left.mjpg", self._video_left_raw)
+        self.app.router.add_get("/video/right.mjpg", self._video_right_raw)
+        self.app.router.add_get("/video/left_rect.mjpg", self._video_left_rect)
+        self.app.router.add_get("/video/right_rect.mjpg", self._video_right_rect)
         self.app.router.add_get("/pose", self._pose)
         self.app.router.add_get("/stream", self._stream_ws)
 
@@ -119,6 +124,21 @@ class Server:
         })
 
     async def _video_mjpg(self, request: web.Request) -> web.StreamResponse:
+        return await self._stream_view(request, lambda f: f.left_rect)
+
+    async def _video_left_raw(self, request: web.Request) -> web.StreamResponse:
+        return await self._stream_view(request, lambda f: f.left_raw)
+
+    async def _video_right_raw(self, request: web.Request) -> web.StreamResponse:
+        return await self._stream_view(request, lambda f: f.right_raw)
+
+    async def _video_left_rect(self, request: web.Request) -> web.StreamResponse:
+        return await self._stream_view(request, lambda f: f.left_rect)
+
+    async def _video_right_rect(self, request: web.Request) -> web.StreamResponse:
+        return await self._stream_view(request, lambda f: f.right_rect)
+
+    async def _stream_view(self, request: web.Request, pick) -> web.StreamResponse:
         boundary = "frame"
         response = web.StreamResponse(
             status=200,
@@ -137,14 +157,14 @@ class Server:
             while True:
                 frame = self.stereo.get_latest()
                 now = time.time()
+                image = pick(frame) if frame is not None else None
                 is_stale = (
                     frame is None
+                    or image is None
                     or (now - frame.timestamp) > STALE_FRAME_THRESHOLD_S
                 )
 
                 if is_stale:
-                    # Re-emit the no-signal frame at ~2 Hz so a viewer that
-                    # connected mid-outage sees something instead of stalling.
                     if not sent_no_signal or (now - last_ts) > 0.5:
                         await response.write(_mjpeg_chunk(boundary, self._no_signal_jpeg))
                         sent_no_signal = True
@@ -159,7 +179,7 @@ class Server:
                 sent_no_signal = False
 
                 jpeg = await loop.run_in_executor(
-                    None, _encode_jpeg, frame.left_rect, self.video_jpeg_quality
+                    None, _encode_jpeg, image, self.video_jpeg_quality
                 )
                 if jpeg is None:
                     continue
@@ -168,6 +188,29 @@ class Server:
         except (ConnectionResetError, asyncio.CancelledError):
             pass
         return response
+
+    async def _index(self, request: web.Request) -> web.Response:
+        html = """<!doctype html>
+<html><head><title>XrayVision Pi</title>
+<style>body{font-family:sans-serif;background:#111;color:#eee;margin:0;padding:12px}
+h1{font-size:16px;margin:0 0 8px}h2{font-size:13px;color:#aaa;margin:8px 0 4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+img{width:100%;background:#000;border:1px solid #333}</style></head>
+<body><h1>XrayVision Pi station</h1>
+<h2>Raw cameras</h2>
+<div class="grid">
+  <div><div>left_raw</div><img src="/video/left.mjpg"></div>
+  <div><div>right_raw</div><img src="/video/right.mjpg"></div>
+</div>
+<h2>Rectified (post-stereo-rectify)</h2>
+<div class="grid">
+  <div><div>left_rect (default /video.mjpg)</div><img src="/video/left_rect.mjpg"></div>
+  <div><div>right_rect</div><img src="/video/right_rect.mjpg"></div>
+</div>
+<p><a href="/healthz" style="color:#8af">/healthz</a> &nbsp;
+   <a href="/pose" style="color:#8af">/pose</a></p>
+</body></html>"""
+        return web.Response(text=html, content_type="text/html")
 
     async def _stream_ws(self, request: web.Request) -> web.WebSocketResponse:
         ws = web.WebSocketResponse(heartbeat=10.0)

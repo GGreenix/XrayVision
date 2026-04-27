@@ -28,6 +28,10 @@ class StereoFrame:
     fy: float
     cx: float
     cy: float
+    # Optional per-camera frames for debug streams. None in mono mode.
+    left_raw: np.ndarray | None = None
+    right_raw: np.ndarray | None = None
+    right_rect: np.ndarray | None = None
 
 
 def _open_camera(device: str, width: int, height: int, fps: float) -> cv2.VideoCapture:
@@ -170,6 +174,9 @@ class StereoPipeline:
                     left_rect=left_r,
                     depth=depth,
                     fx=rect.fx, fy=rect.fy, cx=rect.cx, cy=rect.cy,
+                    left_raw=left,
+                    right_raw=right,
+                    right_rect=right_r,
                 )
                 with self._lock:
                     self._latest = frame
