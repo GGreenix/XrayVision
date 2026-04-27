@@ -11,8 +11,7 @@
 #
 # What it does NOT do:
 #   - Configure WiFi / network.
-#   - Configure the Arducam dtoverlay (do that in /boot/firmware/config.txt
-#     per Arducam's OV2311 docs, then reboot).
+#   - The OV9281 USB modules are UVC-class — no dtoverlay needed.
 
 set -euo pipefail
 

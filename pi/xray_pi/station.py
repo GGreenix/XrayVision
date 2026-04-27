@@ -14,6 +14,7 @@ from pathlib import Path
 import yaml
 
 from xray_pi.detector import DepthDetector, DetectorConfig, StaticPose
+from xray_pi.mono import MonoPipeline
 from xray_pi.server import Server
 from xray_pi.stereo import StereoPipeline
 from xray_pi.stereo_calibration import StereoCalibration
@@ -31,22 +32,32 @@ def load_config(path: str) -> dict:
 
 
 async def main_async(config: dict) -> None:
-    calib = StereoCalibration.load(config["calibration_file"])
-
+    mode = str(config.get("mode", "stereo")).lower()
     capture = config["capture"]
-    sgbm = config["sgbm"]
-    stereo = StereoPipeline(
-        calibration=calib,
-        capture_size=(int(capture["width"]), int(capture["height"])),
-        sgbm_downscale=int(sgbm.get("downscale", 2)),
-        left_device=str(capture["left_device"]),
-        right_device=str(capture["right_device"]),
-        capture_fps=float(capture.get("fps", 20.0)),
-        sgbm_params=sgbm,
-        min_depth_m=float(sgbm.get("min_depth_m", 0.3)),
-        max_depth_m=float(sgbm.get("max_depth_m", 8.0)),
-    )
-    stereo.start()
+
+    if mode == "mono":
+        mono_cfg = config.get("mono", {})
+        pipeline = MonoPipeline(
+            device=str(mono_cfg.get("device") or capture["left_device"]),
+            capture_size=(int(capture["width"]), int(capture["height"])),
+            capture_fps=float(capture.get("fps", 20.0)),
+            horizontal_fov_deg=float(mono_cfg.get("horizontal_fov_deg", 89.0)),
+        )
+    else:
+        calib = StereoCalibration.load(config["calibration_file"])
+        sgbm = config["sgbm"]
+        pipeline = StereoPipeline(
+            calibration=calib,
+            capture_size=(int(capture["width"]), int(capture["height"])),
+            sgbm_downscale=int(sgbm.get("downscale", 2)),
+            left_device=str(capture["left_device"]),
+            right_device=str(capture["right_device"]),
+            capture_fps=float(capture.get("fps", 20.0)),
+            sgbm_params=sgbm,
+            min_depth_m=float(sgbm.get("min_depth_m", 0.3)),
+            max_depth_m=float(sgbm.get("max_depth_m", 8.0)),
+        )
+    pipeline.start()
 
     pose_cfg = config["pose"]
     pose = StaticPose(
@@ -66,13 +77,16 @@ async def main_async(config: dict) -> None:
             allowed_classes=tuple(det_cfg.get("allowed_classes", []) or []),
             sample_bbox_bottom=bool(det_cfg.get("sample_bbox_bottom", False)),
             depth_window=int(det_cfg.get("depth_window", 4)),
+            ground_plane_fallback=bool(det_cfg.get("ground_plane_fallback", mode == "mono")),
+            ground_z_m=float(det_cfg.get("ground_z_m", 0.0)),
+            max_range_m=float(det_cfg.get("max_range_m", 50.0)),
         ),
         pose=pose,
     )
 
     server_cfg = config["server"]
     server = Server(
-        stereo=stereo,
+        stereo=pipeline,
         detector=detector,
         pose=pose,
         host=str(server_cfg.get("host", "0.0.0.0")),
@@ -101,7 +115,7 @@ async def main_async(config: dict) -> None:
         await server_task
     except asyncio.CancelledError:
         pass
-    stereo.stop()
+    pipeline.stop()
 
 
 def main() -> int:

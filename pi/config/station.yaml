@@ -1,12 +1,23 @@
 # Pi station configuration. Read by xray_pi.station at startup.
 # All paths are absolute — installer copies the calibration into /opt/xray.
 
+# stereo: dual cameras + SGBM depth (default).
+# mono:   single camera, no depth — detector falls back to ground-plane
+#         projection. Requires detector.sample_bbox_bottom: true.
+mode: stereo
+
 calibration_file: /opt/xray/config/stereo_calibration.yaml
 
+mono:
+  # Only used if mode: mono. Falls back to capture.left_device if unset.
+  device: ""
+  horizontal_fov_deg: 89.0
+
 capture:
-  width: 1600
-  height: 1300
-  fps: 20.0
+  # OV9281 native: 1280x800 mono global-shutter.
+  width: 1280
+  height: 800
+  fps: 30.0
   # Stable USB device paths. /dev/video0 etc. work but the index changes
   # across reboots; use the by-id symlink so the left/right assignment
   # never flips. Find them with: ls -l /dev/v4l/by-id/
@@ -41,8 +52,14 @@ detector:
   imgsz: 640
   device: ""               # "" = auto, "cpu", "cuda:0"
   allowed_classes: []      # empty = all classes
-  sample_bbox_bottom: false  # true = ground-only fallback
+  sample_bbox_bottom: false  # true = sample bbox foot (useful w/ ground-plane fallback)
   depth_window: 4
+  # Ground-plane fallback: when stereo depth is missing for a detection,
+  # ray-cast onto z = ground_z_m. Useful if SGBM can't see a person against
+  # a textureless wall but you still want a rough position. Off by default.
+  ground_plane_fallback: false
+  ground_z_m: 0.0
+  max_range_m: 50.0
 
 server:
   host: 0.0.0.0

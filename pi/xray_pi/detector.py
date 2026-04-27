@@ -13,6 +13,7 @@ import numpy as np
 
 from xray_pi.camera_model import CameraIntrinsics
 from xray_pi.depth_unproject import localize_pixel_with_depth, sample_depth_patch
+from xray_pi.ground_plane import localize_pixel_on_ground
 from xray_pi.math_utils import rotation_matrix_from_euler
 from xray_pi.stereo import StereoFrame
 
@@ -27,6 +28,12 @@ class DetectorConfig:
     allowed_classes: tuple[str, ...] = ()  # empty = all
     sample_bbox_bottom: bool = False
     depth_window: int = 4
+    # Mono fallback: when stereo depth is unavailable (zero), project the
+    # pixel onto a flat ground plane at world z = ground_z_m. Requires
+    # sample_bbox_bottom=True to make any sense (object is touching the ground).
+    ground_plane_fallback: bool = False
+    ground_z_m: float = 0.0
+    max_range_m: float = 50.0
 
 
 @dataclass
@@ -99,15 +106,27 @@ class DepthDetector:
             u_px = (x1 + x2) / 2.0
             v_px = (y1 + y2) / 2.0 if not self.config.sample_bbox_bottom else y2
             depth_m = sample_depth_patch(frame.depth, u_px, v_px, half_window=self.config.depth_window)
-            if depth_m <= 0.0:
+
+            if depth_m > 0.0:
+                world = localize_pixel_with_depth(
+                    u_px=u_px, v_px=v_px, depth_m=depth_m, intrinsics=intrinsics,
+                    world_from_body=self.world_from_body,
+                    body_from_camera_mount=self.body_from_camera_mount,
+                    camera_origin_world=self.camera_origin_world,
+                )
+            elif self.config.ground_plane_fallback:
+                world = localize_pixel_on_ground(
+                    u_px=u_px, v_px=v_px, intrinsics=intrinsics,
+                    world_from_body=self.world_from_body,
+                    body_from_camera_mount=self.body_from_camera_mount,
+                    camera_origin_world=self.camera_origin_world,
+                    ground_z_m=self.config.ground_z_m,
+                    max_range_m=self.config.max_range_m,
+                )
+                depth_m = world.range_m if world is not None else 0.0
+            else:
                 continue
 
-            world = localize_pixel_with_depth(
-                u_px=u_px, v_px=v_px, depth_m=depth_m, intrinsics=intrinsics,
-                world_from_body=self.world_from_body,
-                body_from_camera_mount=self.body_from_camera_mount,
-                camera_origin_world=self.camera_origin_world,
-            )
             if world is None:
                 continue
 

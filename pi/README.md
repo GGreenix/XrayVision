@@ -17,10 +17,10 @@ Raspberry Pi OS Bookworm out of the box.
 ## Hardware
 
 - Raspberry Pi 5 (4 GB or 8 GB).
-- Two **Arducam OV2311 USB** modules (1600×1300 global-shutter mono,
+- Two **Arducam OV9281 USB** modules (1280×800 global-shutter mono,
   UVC-class — they appear as standard webcams).
 - Both connected to the Pi 5's USB-3 ports (don't share a USB-2 hub —
-  bandwidth will choke at full resolution).
+  even at 1280×800 two MJPG streams want USB-3 headroom).
 - Stereo rig with **8 cm** between optical centers (validated by the
   calibration tool).
 
@@ -35,8 +35,8 @@ swap on reboot), so always reference the cameras by their stable
 
 ```bash
 ls -l /dev/v4l/by-id/
-# usb-Arducam_OV2311_USB_Camera_SN12345-video-index0 -> ../../video0
-# usb-Arducam_OV2311_USB_Camera_SN67890-video-index0 -> ../../video2
+# usb-Arducam_OV9281_USB_Camera_SN12345-video-index0 -> ../../video0
+# usb-Arducam_OV9281_USB_Camera_SN67890-video-index0 -> ../../video2
 ```
 
 Pick which serial number is "left" vs "right" (mark the housings) and
@@ -49,7 +49,7 @@ v4l2-ctl --device /dev/v4l/by-id/usb-Arducam_...-video-index0 \
          --list-formats-ext
 ```
 
-You should see MJPG and YUYV at 1600×1300 among the available modes.
+You should see MJPG and YUYV at 1280×800 among the available modes.
 
 ## OS
 
@@ -188,7 +188,7 @@ each camera's USB serial number and never change.
 
 ### Both cameras together drop frames at full resolution
 
-Two USB-3 OV2311 streams at 1600×1300 MJPG fit on a single Pi 5 USB
+Two USB-3 OV9281 streams at 1280×800 MJPG fit on a single Pi 5 USB
 controller, but **only over USB 3**. If you plugged into a USB-2 hub
 you'll see dropped grabs. Either move to a powered USB-3 hub or lower
 `capture.width`/`height` in `station.yaml`.

@@ -5,7 +5,7 @@ reboots, so we strongly prefer stable paths under /dev/v4l/by-id/. Both
 left_device and right_device should be those by-id paths.
 
 Capture priority:  MJPG  ->  YUYV  ->  whatever the camera negotiates.
-MJPG keeps USB bandwidth low enough for two 1600x1300 streams at 20+ Hz
+MJPG keeps USB bandwidth low enough for two 1280x800 streams at 30+ Hz
 on a single Pi 5 USB3 controller.
 """
 
@@ -133,7 +133,7 @@ class StereoPipeline:
                 if not (ok_l and ok_r) or left is None or right is None:
                     continue
 
-                # OV2311 USB modules typically expose YUYV/MJPG and decode
+                # OV9281 USB modules typically expose YUYV/MJPG and decode
                 # to BGR — convert to grayscale for stereo matching.
                 if left.ndim == 3:
                     left = cv2.cvtColor(left, cv2.COLOR_BGR2GRAY)

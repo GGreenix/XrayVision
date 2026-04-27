@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stereo calibration for the dual USB Arducam OV2311 setup.
+"""Stereo calibration for the dual USB Arducam OV9281 setup.
 
 Workflow:
     1. Print a checkerboard (default: 9x6 inner corners, 25 mm squares).
@@ -34,8 +34,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", required=True, help="Path to write stereo_calibration.yaml")
     parser.add_argument("--left", required=True, help="Left camera device path (prefer /dev/v4l/by-id/...)")
     parser.add_argument("--right", required=True, help="Right camera device path")
-    parser.add_argument("--width", type=int, default=1600)
-    parser.add_argument("--height", type=int, default=1300)
+    parser.add_argument("--width", type=int, default=1280)
+    parser.add_argument("--height", type=int, default=800)
     parser.add_argument("--fps", type=float, default=15.0)
     parser.add_argument("--rows", type=int, default=6, help="Inner-corner rows on the checkerboard")
     parser.add_argument("--cols", type=int, default=9, help="Inner-corner cols on the checkerboard")
