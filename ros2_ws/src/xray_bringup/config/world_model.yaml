@@ -1,0 +1,7 @@
+world_model:
+  ros__parameters:
+    world_frame: map
+    match_radius_m: 3.0
+    stale_after_s: 10.0
+    publish_rate_hz: 5.0
+    smoothing_alpha: 0.65
