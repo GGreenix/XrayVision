@@ -23,8 +23,8 @@ capture:
   # (identifies cameras by USB port). Find yours with:
   #   ls -l /dev/v4l/by-path/
   # Mark the physical USB ports LEFT/RIGHT so plugging never swaps them.
-  left_device:  /dev/v4l/by-path/platform-xhci-hcd.1-usb-0:1:1.0-video-index0
-  right_device: /dev/v4l/by-path/platform-xhci-hcd.0-usb-0:1:1.0-video-index0
+  left_device:  /dev/v4l/by-path/platform-xhci-hcd.0-usb-0:1:1.0-video-index0
+  right_device: /dev/v4l/by-path/platform-xhci-hcd.1-usb-0:1:1.0-video-index0
 
 sgbm:
   # 1=full res (very slow on Pi 5), 2=half (recommended), 3=third (fastest).
