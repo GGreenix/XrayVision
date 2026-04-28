@@ -193,10 +193,10 @@ class Server:
                         y1 = int((v_norm - h_norm / 2) * h)
                         x2 = int((u_norm + w_norm / 2) * w)
                         y2 = int((v_norm + h_norm / 2) * h)
-                        cv2.rectangle(image_with_bboxes, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        cv2.rectangle(image_with_bboxes, (x1, y1), (x2, y2), (0, 0, 255), 2)
                         label = f"{obj.get('class_id', 'obj')} {obj.get('confidence', 0):.2f}"
                         cv2.putText(image_with_bboxes, label, (x1, y1 - 5),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
 
                 jpeg = await loop.run_in_executor(
                     None, _encode_jpeg, image_with_bboxes, self.video_jpeg_quality
