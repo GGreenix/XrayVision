@@ -178,8 +178,28 @@ class Server:
                 last_ts = frame.timestamp
                 sent_no_signal = False
 
+                image_with_bboxes = image.copy()
+                async with self._lock:
+                    detections = self._latest_detections.get("objects", [])
+                for obj in detections:
+                    bbox = obj.get("bbox", {})
+                    u_norm = bbox.get("u_norm")
+                    v_norm = bbox.get("v_norm")
+                    w_norm = bbox.get("w_norm")
+                    h_norm = bbox.get("h_norm")
+                    if u_norm is not None and v_norm is not None and w_norm is not None and h_norm is not None:
+                        h, w = image_with_bboxes.shape[:2]
+                        x1 = int((u_norm - w_norm / 2) * w)
+                        y1 = int((v_norm - h_norm / 2) * h)
+                        x2 = int((u_norm + w_norm / 2) * w)
+                        y2 = int((v_norm + h_norm / 2) * h)
+                        cv2.rectangle(image_with_bboxes, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        label = f"{obj.get('class_id', 'obj')} {obj.get('confidence', 0):.2f}"
+                        cv2.putText(image_with_bboxes, label, (x1, y1 - 5),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
                 jpeg = await loop.run_in_executor(
-                    None, _encode_jpeg, image, self.video_jpeg_quality
+                    None, _encode_jpeg, image_with_bboxes, self.video_jpeg_quality
                 )
                 if jpeg is None:
                     continue
