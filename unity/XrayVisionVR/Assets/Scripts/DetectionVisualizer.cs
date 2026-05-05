@@ -7,6 +7,8 @@ public class DetectionVisualizer : MonoBehaviour
     public PiClient piClient;
     public Material targetMaterial;
     public float scale = 0.2f;
+    [Tooltip("World scale matching Scaniverse mesh import scale (same as CameraPoser.positionScale).")]
+    public float worldScale = 10f;
 
     private Dictionary<string, GameObject> activeTargets = new();
     private Queue<DetectionFrame> frameQueue = new();
@@ -95,7 +97,7 @@ public class DetectionVisualizer : MonoBehaviour
     void UpdateTarget(string id, Detection obj)
     {
         if (activeTargets.TryGetValue(id, out var sphere))
-            sphere.transform.position = new Vector3(obj.x, obj.z, obj.y);
+            sphere.transform.position = new Vector3(obj.x, obj.z, obj.y) * worldScale;
     }
 
     [Serializable]

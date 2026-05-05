@@ -21,14 +21,14 @@ using UnityEngine.Networking;
 /// </summary>
 public class PiClient : MonoBehaviour
 {
-    [Tooltip("Pi address. Try IP first (e.g. 10.0.0.101), falls back to hostnames.")]
-    public string host = "10.0.0.101";
+    [Tooltip("PC address running the XrayVision PC pipeline.")]
+    public string host = "localhost";
 
     [Tooltip("Comma-separated fallback hosts tried in order if the primary fails.")]
-    public string fallbackHosts = "pi.local,pi";
+    public string fallbackHosts = "";
 
-    [Tooltip("Pi server port (matches station.yaml server.port).")]
-    public int port = 8765;
+    [Tooltip("PC server port (matches pc_config.yaml server.port).")]
+    public int port = 8766;
 
     [Tooltip("Reconnect after this many seconds when the WebSocket drops.")]
     public float reconnectDelaySeconds = 2f;
