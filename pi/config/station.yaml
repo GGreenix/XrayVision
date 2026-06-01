@@ -14,9 +14,9 @@ mono:
   horizontal_fov_deg: 89.0
 
 capture:
-  # OV9281 native: 1280x800 mono global-shutter.
+  # OV9281 native: 1280x800 mono global-shutter. Using 1280x720 to match calibration.
   width: 1280
-  height: 800
+  height: 720
   fps: 30.0
   # Stable USB device paths. Many Arducam OV9281 modules ship with
   # identical USB serials, so /dev/v4l/by-id/ collides — use by-path

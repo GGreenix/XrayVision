@@ -1,6 +1,7 @@
 """SGBM stereo depth processing on PC."""
 
 from dataclasses import dataclass
+from typing import Tuple
 
 import cv2
 import numpy as np
@@ -14,10 +15,8 @@ class StereoCalib:
     cx: float
     cy: float
     baseline_m: float
-    map_left_x: np.ndarray
-    map_left_y: np.ndarray
-    map_right_x: np.ndarray
-    map_right_y: np.ndarray
+    Left_Stereo_Map: tuple
+    Right_Stereo_Map: tuple
 
     @classmethod
     def load(cls, path: str):
@@ -32,16 +31,16 @@ class StereoCalib:
         T  = np.array(d["T"], dtype=np.float64).reshape(3, 1)
 
         size = (w, h)
-        R1, R2, P1, P2, _, _, _ = cv2.stereoRectify(Kl, Dl, Kr, Dr, size, R, T, alpha=0)
-        map_lx, map_ly = cv2.initUndistortRectifyMap(Kl, Dl, R1, P1, size, cv2.CV_32FC1)
-        map_rx, map_ry = cv2.initUndistortRectifyMap(Kr, Dr, R2, P2, size, cv2.CV_32FC1)
+        RL, RR, PL, PR, _, _, _ = cv2.stereoRectify(Kl, Dl, Kr, Dr, size, R, T, alpha=0)
+        Left_Stereo_Map = cv2.initUndistortRectifyMap(Kl, Dl, RL, PL, size, cv2.CV_16SC2)
+        Right_Stereo_Map = cv2.initUndistortRectifyMap(Kr, Dr, RR, PR, size, cv2.CV_16SC2)
 
         return cls(
-            fx=float(P1[0, 0]), fy=float(P1[1, 1]),
-            cx=float(P1[0, 2]), cy=float(P1[1, 2]),
+            fx=float(PL[0, 0]), fy=float(PL[1, 1]),
+            cx=float(PL[0, 2]), cy=float(PL[1, 2]),
             baseline_m=abs(float(T[0])),
-            map_left_x=map_lx, map_left_y=map_ly,
-            map_right_x=map_rx, map_right_y=map_ry,
+            Left_Stereo_Map=Left_Stereo_Map,
+            Right_Stereo_Map=Right_Stereo_Map,
         )
 
 
@@ -64,6 +63,11 @@ class SGBMProcessor:
         p = params or {}
         self.downscale = max(1, int(p.get("downscale", 1)))
         bs = int(p.get("block_size", 7))
+        mode_str = p.get("mode", "SGBM_3WAY")
+        if mode_str == "HH":
+            mode = cv2.STEREO_SGBM_MODE_HH
+        else:
+            mode = cv2.STEREO_SGBM_MODE_SGBM_3WAY
         self.matcher = cv2.StereoSGBM_create(
             minDisparity=int(p.get("min_disparity", 0)),
             numDisparities=int(p.get("num_disparities", 96)),
@@ -73,7 +77,7 @@ class SGBMProcessor:
             uniquenessRatio=int(p.get("uniqueness_ratio", 10)),
             speckleWindowSize=int(p.get("speckle_window_size", 100)),
             speckleRange=int(p.get("speckle_range", 2)),
-            mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY,
+            mode=mode,
         )
         self.min_depth = float(p.get("min_depth_m", 0.3))
         self.max_depth = float(p.get("max_depth_m", 8.0))
@@ -83,8 +87,8 @@ class SGBMProcessor:
         lg = cv2.cvtColor(left, cv2.COLOR_BGR2GRAY) if left.ndim == 3 else left.copy()
         rg = cv2.cvtColor(right, cv2.COLOR_BGR2GRAY) if right.ndim == 3 else right.copy()
 
-        lr = cv2.remap(lg, c.map_left_x, c.map_left_y, cv2.INTER_LINEAR)
-        rr = cv2.remap(rg, c.map_right_x, c.map_right_y, cv2.INTER_LINEAR)
+        lr = cv2.remap(lg, c.Left_Stereo_Map[0], c.Left_Stereo_Map[1], cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT)
+        rr = cv2.remap(rg, c.Right_Stereo_Map[0], c.Right_Stereo_Map[1], cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT)
 
         if self.downscale > 1:
             h, w = lr.shape[:2]

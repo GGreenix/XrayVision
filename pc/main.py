@@ -49,6 +49,10 @@ async def detection_loop(left_client, right_client, sgbm, detector,
 
         frame = await loop.run_in_executor(None, sgbm.process, left, right)
 
+        valid_pct = 100 * (frame.depth > 0).sum() / frame.depth.size
+        if valid_pct < 5:
+            print(f"[stereo_warn] only {valid_pct:.1f}% valid depth — possible calibration issue", flush=True)
+
         now = time.time()
         if now - last_icp > icp_interval_s:
             valid_depth = int((frame.depth > 0).sum())
@@ -67,10 +71,12 @@ async def detection_loop(left_client, right_client, sgbm, detector,
         )
 
         pos = localizer.pose.position_m
-        print(f"[pose] x={pos[0]:.3f} y={pos[1]:.3f} z={pos[2]:.3f}", flush=True)
+        # print(f"[pose] x={pos[0]:.3f} y={pos[1]:.3f} z={pos[2]:.3f}", flush=True)
 
         depth = frame.depth
         valid = depth > 0
+        valid_count = valid.sum()
+        print(f"[depth] valid pixels: {valid_count}/{depth.size} ({100*valid_count/depth.size:.1f}%)", flush=True)
         if valid.any():
             d_norm = np.zeros_like(depth, dtype=np.uint8)
             d_norm[valid] = cv2.normalize(
@@ -80,6 +86,9 @@ async def detection_loop(left_client, right_client, sgbm, detector,
             depth_color[~valid] = 0
             _, jpg = cv2.imencode(".jpg", depth_color, [cv2.IMWRITE_JPEG_QUALITY, 70])
             await server.publish_depth(jpg.tobytes())
+            print(f"[depth] published {len(jpg)} bytes", flush=True)
+        else:
+            print(f"[depth] no valid depth — skipping publish", flush=True)
 
         await server.publish({
             "t": time.time(),
@@ -103,6 +112,9 @@ async def main_async(config: dict):
     print(f"[main] connecting to Pi at {base_url}", flush=True)
 
     calib = StereoCalib.load(config["calibration_file"])
+    print(f"[calib] baseline={calib.baseline_m:.4f}m fx={calib.fx:.1f} fy={calib.fy:.1f} "
+          f"cx={calib.cx:.1f} cy={calib.cy:.1f}", flush=True)
+    print(f"[calib] map shapes: left={calib.Left_Stereo_Map[0].shape} right={calib.Right_Stereo_Map[0].shape}", flush=True)
     sgbm = SGBMProcessor(calib, config.get("sgbm", {}))
 
     pose_cfg = config["pose"]
