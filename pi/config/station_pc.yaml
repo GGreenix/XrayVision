@@ -24,20 +24,20 @@ detector:
   allowed_classes: [person]
 
 photonvision:
-  enabled: true
+  enabled: false
   # Camera name exactly as it appears in the PhotonVision UI.
   camera_name: "detector_pose"
   poll_hz: 20.0
   # Tag world poses in Unity frame — same values as the AprilTag Anchor object.
   tags:
     - id: 1
-      unity_pos: [0.98, 22.29, -22.68]
+      unity_pos: [0.71, 21.62, -22.49]
       unity_euler: [0.0, -8.35, 0.0]
 
 apriltag:
   enabled: true
   tag_id: 1
-  tag_size_m: 0.10
+  tag_size_m: 0.18
   # Tag world pose in Unity frame (from Inspector: AprilTag Anchor object).
   # Server uses this to compute camera world pose when the tag is detected.
   unity_world_pos: [0.98, 22.29, -22.68]

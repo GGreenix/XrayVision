@@ -26,14 +26,13 @@ public class AprilTagCameraPoser : MonoBehaviour
 
     [Header("PhotonVision Pose")]
     [Tooltip("Use the PhotonVision camera world pose from the 'camera' field. Takes priority over the tag pose.")]
-    public bool usePhotonVisionPose = true;
+    public bool usePhotonVisionPose = false;
 
     [Header("Debug — Hardcoded Pose")]
     [Tooltip("When true, ignores the server pose and uses the values below.")]
-    public bool useHardcodedPose = false;
-    // Camera Unity transform: pos(-16.2, 25.1, -26.2) rot(-16.55, -8.7, 2.48)
-    public Vector3 hardcodedPosition = new Vector3(-16.2f, 25.1f, -26.2f);
-    public Vector3 hardcodedRotationEuler = new Vector3(-16.55f, -8.7f, 2.48f);
+    public bool useHardcodedPose = true;
+    public Vector3 hardcodedPosition = new Vector3(-26.83f, 22.7f, -13.6f);
+    public Vector3 hardcodedRotationEuler = new Vector3(0f, 0f, 0f);
 
     [Header("Debug — Camera Marker")]
     [Tooltip("Shows a red sphere at the camera rig position in the scene.")]

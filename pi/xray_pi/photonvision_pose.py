@@ -20,10 +20,12 @@ _OTB = np.array([[0., 0., 1.], [-1., 0., 0.], [0., -1., 0.]])
 
 
 def _unity_to_wpilib_translation(unity_pos: list[float]):
-    """Unity (X=right, Y=up, Z=forward) → WPILib (X=forward, Y=left, Z=up)."""
+    """Unity → field frame. Axis mapping derived empirically from observed motion:
+       field.x(fwd)=unity.z,  field.y=unity.x,  field.z(up)=unity.y
+    (No sign flip on X — moving right must increase Unity X.)"""
     from wpimath.geometry import Translation3d
-    x, y, z = unity_pos
-    return Translation3d(z, -x, y)
+    ux, uy, uz = unity_pos
+    return Translation3d(uz, ux, uy)
 
 
 def _unity_euler_to_wpilib_rotation(unity_euler_deg: list[float]):
@@ -58,40 +60,6 @@ def build_field_layout(tag_configs: list[dict]):
 
     return AprilTagFieldLayout(tags, 1000.0, 1000.0)
 
-
-# Server/field frame (X=forward, Y=left, Z=up) → Unity (X=right, Y=up, Z=forward).
-_M_S2U = np.array([[0., -1., 0.], [0., 0., 1.], [1., 0., 0.]])
-
-
-def _matrix_to_quaternion(m: np.ndarray) -> list[float]:
-    tr = m[0, 0] + m[1, 1] + m[2, 2]
-    if tr > 0:
-        s = math.sqrt(tr + 1.0) * 2.0
-        w, x, y, z = 0.25*s, (m[2,1]-m[1,2])/s, (m[0,2]-m[2,0])/s, (m[1,0]-m[0,1])/s
-    elif m[0,0] > m[1,1] and m[0,0] > m[2,2]:
-        s = math.sqrt(1.0+m[0,0]-m[1,1]-m[2,2]) * 2.0
-        w, x, y, z = (m[2,1]-m[1,2])/s, 0.25*s, (m[0,1]+m[1,0])/s, (m[0,2]+m[2,0])/s
-    elif m[1,1] > m[2,2]:
-        s = math.sqrt(1.0+m[1,1]-m[0,0]-m[2,2]) * 2.0
-        w, x, y, z = (m[0,2]-m[2,0])/s, (m[0,1]+m[1,0])/s, 0.25*s, (m[1,2]+m[2,1])/s
-    else:
-        s = math.sqrt(1.0+m[2,2]-m[0,0]-m[1,1]) * 2.0
-        w, x, y, z = (m[1,0]-m[0,1])/s, (m[0,2]+m[2,0])/s, (m[1,2]+m[2,1])/s, 0.25*s
-    return [float(x), float(y), float(z), float(w)]
-
-
-def _server_pose_to_unity(position_m: list[float], rotation3d) -> dict:
-    """Camera world pose (field frame) → Unity world pose dict {pos, rot}."""
-    pos = (_M_S2U @ np.array(position_m)).tolist()
-    q = rotation3d.getQuaternion()
-    w, x, y, z = q.W(), q.X(), q.Y(), q.Z()
-    R = np.array([
-        [1-2*(y*y+z*z), 2*(x*y-w*z),   2*(x*z+w*y)  ],
-        [2*(x*y+w*z),   1-2*(x*x+z*z), 2*(y*z-w*x)  ],
-        [2*(x*z-w*y),   2*(y*z+w*x),   1-2*(x*x+y*y)],
-    ])
-    R_u = _M_S2U @ R @ _M_S2U.T
-    return {"pos": [float(v) for v in pos], "rot": _matrix_to_quaternion(R_u)}
 
 
 def _rotation3d_to_world_from_body(rot) -> np.ndarray:
@@ -200,16 +168,19 @@ class PhotonVisionPoseReader:
                 result = estimator.estimateCoprocMultiTagPose(pipeline_result) \
                     or estimator.estimateLowestAmbiguityPose(pipeline_result)
                 if result is not None:
-                    t = result.estimatedPose.translation()
-                    r = result.estimatedPose.rotation()
+                    pose = result.estimatedPose
+                    t = pose.translation()
+                    q = pose.rotation().getQuaternion()
                     position_m = [t.x, t.y, t.z]
-                    world_from_body = _rotation3d_to_world_from_body(r)
-                    # Save the last pose (Unity frame) for forwarding to Unity.
-                    self.last_unity_pose = _server_pose_to_unity(position_m, r)
-                    self._on_pose(position_m, world_from_body)
+                    # Field → Unity:  unity.x=field.y, unity.y=field.z(up), unity.z=field.x(fwd)
+                    self.last_unity_pose = {
+                        "pos": [t.y, t.z, t.x],
+                        "rot": [q.Y(), q.Z(), q.X(), q.W()],
+                    }
+                    self._on_pose(position_m, _rotation3d_to_world_from_body(pose.rotation()))
                     now = time.time()
                     if now - last_print > 0.5:
-                        print(f"[photon] camera pos  x={t.x:.3f}  y={t.y:.3f}  z={t.z:.3f} m", flush=True)
+                        print(pipeline_result.getBestTarget().getBestCameraToTarget(), flush=True)
                         last_print = now
                 time.sleep(self._poll_period)
 

@@ -75,6 +75,7 @@ class MonoPipeline:
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True, name="mono")
+        print("[mono] camera ON (XrayVision) — press C in preview to hand to PhotonVision", flush=True)
 
     def start(self) -> None:
         self._thread.start()
