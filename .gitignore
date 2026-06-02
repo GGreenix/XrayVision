@@ -9,6 +9,13 @@ __pycache__/
 *.pyo
 *.egg-info/
 
+# --- PhotonVision (binary + per-machine config/calibration, regenerable) ---
+# NOTE: pi/xray_pi/photonvision_pose.py is our source — intentionally NOT ignored.
+pi/photonvision-*.jar
+pi/photonvision_config/
+pi/photonvision-settings-export.zip
+pi/photon_calibration_*.json
+pi/calib_*.json
 # --- Editor / OS ---
 *.swp
 *~

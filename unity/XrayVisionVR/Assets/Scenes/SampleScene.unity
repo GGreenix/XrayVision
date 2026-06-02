@@ -128,8 +128,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2606406}
-  - component: {fileID: 2606405}
-  - component: {fileID: 2606404}
+  - component: {fileID: 2606407}
   m_Layer: 0
   m_Name: CemraStereo
   m_TagString: Untagged
@@ -137,39 +136,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2606404
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2606403}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 33f38293a544fb64ba202c127ca764f6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CameraPoser
-  piClient: {fileID: 546438568}
-  target: {fileID: 0}
-  positionScale: 20
-  smoothSpeed: 8
---- !u!114 &2606405
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2606403}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f286b6477f761ca41a6d60d05995f2f5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PoseDebugVisualizer
-  piClient: {fileID: 546438568}
-  scale: 20
-  flipZ: 0
-  flipY: 0
-  swapYZ: 0
 --- !u!4 &2606406
 Transform:
   m_ObjectHideFlags: 0
@@ -178,13 +144,37 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2606403}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -89.4574, y: -0, z: -29.36651}
+  m_LocalRotation: {x: -0.14510056, y: -0.07193597, z: 0.010439477, w: 0.9867432}
+  m_LocalPosition: {x: -16.2, y: 25.1, z: -26.2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -16.55, y: -8.7, z: 2.48}
+--- !u!114 &2606407
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2606403}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 410113c7b954d7a4fa59f1078d7e68a3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AprilTagCameraPoser
+  piClient: {fileID: 546438568}
+  cameraRig: {fileID: 2606406}
+  tagAnchor: {fileID: 0}
+  anchor: {fileID: 0}
+  applyRotation: 1
+  smoothing: 10
+  rotationOffsetEuler: {x: 0, y: 0, z: 0}
+  usePhotonVisionPose: 1
+  useHardcodedPose: 0
+  hardcodedPosition: {x: -16.2, y: 25.1, z: -26.2}
+  hardcodedRotationEuler: {x: -16.55, y: -8.7, z: 2.48}
+  showCameraMarker: 0
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -481,7 +471,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PiClient
   host: localhost
   fallbackHosts: 
-  port: 8766
+  port: 8765
   reconnectDelaySeconds: 2
   verboseLogging: 0
 --- !u!4 &546438569
@@ -629,6 +619,22 @@ PrefabInstance:
       propertyPath: m_Name
       value: Scaniverse_2026_05_05_181025
       objectReference: {fileID: 0}
+    - target: {fileID: 7267583086349385398, guid: 17f6dfe0b68e7b74eb8fba6ae1e1fbb5, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.9903771
+      objectReference: {fileID: 0}
+    - target: {fileID: 7267583086349385398, guid: 17f6dfe0b68e7b74eb8fba6ae1e1fbb5, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0.13839535
+      objectReference: {fileID: 0}
+    - target: {fileID: 7267583086349385398, guid: 17f6dfe0b68e7b74eb8fba6ae1e1fbb5, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7267583086349385398, guid: 17f6dfe0b68e7b74eb8fba6ae1e1fbb5, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 15.91
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -681,38 +687,9 @@ MonoBehaviour:
   piClient: {fileID: 546438568}
   targetMaterial: {fileID: 2100000, guid: ae9b9e55374112141986afdf12e0dd1f, type: 2}
   scale: 2
-  worldScale: 10
---- !u!1 &1465704120
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1465704121}
-  m_Layer: 0
-  m_Name: GameObject
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1465704121
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1465704120}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -27.28604, y: 0, z: -8.8813}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  cameraTransform: {fileID: 0}
+  apriltagMaterial: {fileID: 0}
+  apriltagScale: 0.15
 --- !u!1 &1671098495
 GameObject:
   m_ObjectHideFlags: 0
@@ -848,5 +825,4 @@ SceneRoots:
   - {fileID: 1671098500}
   - {fileID: 546438569}
   - {fileID: 1127681781}
-  - {fileID: 1465704121}
   - {fileID: 2606406}

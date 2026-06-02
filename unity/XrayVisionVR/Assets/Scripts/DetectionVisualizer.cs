@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,35 +7,29 @@ public class DetectionVisualizer : MonoBehaviour
     public PiClient piClient;
     public Material targetMaterial;
     public float scale = 0.2f;
-    [Tooltip("World scale matching Scaniverse mesh import scale (same as CameraPoser.positionScale).")]
-    public float worldScale = 10f;
 
-    private Dictionary<string, GameObject> activeTargets = new();
-    private Queue<DetectionFrame> frameQueue = new();
-    private object lockObj = new();
+    [Header("AprilTag marker")]
+    public Transform cameraTransform;
+    public Material apriltagMaterial;
+    public float apriltagScale = 0.15f;
 
-    void OnEnable()
-    {
-        if (piClient != null)
-            piClient.OnDetectionPayload += HandleDetections;
-    }
+    // All Unity API calls must happen on the main thread.
+    // WebSocket callbacks cache pending state; Update() applies it.
+    private DetectionFrame _pending;
+    private readonly object _pendingLock = new object();
 
-    void OnDisable()
-    {
-        if (piClient != null)
-            piClient.OnDetectionPayload -= HandleDetections;
-    }
+    private Dictionary<string, GameObject> _activeTargets = new();
+    private GameObject _apriltagMarker;
 
-    void HandleDetections(string payload)
+    void OnEnable()  { if (piClient != null) piClient.OnDetectionPayload += OnPayload; }
+    void OnDisable() { if (piClient != null) piClient.OnDetectionPayload -= OnPayload; }
+
+    void OnPayload(string payload)
     {
         try
         {
             var data = JsonUtility.FromJson<DetectionFrame>(payload);
-            if (data?.objects == null) return;
-            lock (lockObj)
-            {
-                frameQueue.Enqueue(data);
-            }
+            lock (_pendingLock) _pending = data;
         }
         catch (Exception e)
         {
@@ -45,38 +39,72 @@ public class DetectionVisualizer : MonoBehaviour
 
     void Update()
     {
-        lock (lockObj)
+        DetectionFrame data;
+        lock (_pendingLock)
         {
-            while (frameQueue.Count > 0)
-            {
-                var frame = frameQueue.Dequeue();
-                ProcessDetections(frame);
-            }
+            data = _pending;
+            _pending = null;
+        }
+        if (data == null) return;
+
+        ApplyAprilTag(data.apriltag);
+
+        if (data.objects != null && data.objects.Length > 0)
+            ApplyDetections(data.objects);
+    }
+
+    void ApplyAprilTag(AprilTag tag)
+    {
+        if (tag == null || tag.id <= 0)
+        {
+            if (_apriltagMarker != null) _apriltagMarker.SetActive(false);
+            return;
+        }
+
+        if (_apriltagMarker == null)
+        {
+            _apriltagMarker = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _apriltagMarker.name = $"apriltag-{tag.id}";
+            Destroy(_apriltagMarker.GetComponent<Collider>());
+            _apriltagMarker.transform.localScale = Vector3.one * apriltagScale;
+            if (apriltagMaterial != null)
+                _apriltagMarker.GetComponent<Renderer>().material = apriltagMaterial;
+        }
+
+        _apriltagMarker.SetActive(true);
+        var pos = new Vector3(tag.x, tag.y, tag.z);
+        if (cameraTransform != null)
+        {
+            _apriltagMarker.transform.SetParent(cameraTransform, false);
+            _apriltagMarker.transform.localPosition = pos;
+        }
+        else
+        {
+            _apriltagMarker.transform.SetParent(transform, false);
+            _apriltagMarker.transform.position = pos;
         }
     }
 
-    void ProcessDetections(DetectionFrame frame)
+    void ApplyDetections(Detection[] objects)
     {
-        var seenIds = new HashSet<string>();
-        foreach (var obj in frame.objects)
+        var seen = new HashSet<string>();
+        foreach (var obj in objects)
         {
-            seenIds.Add(obj.tracking_id);
-            if (!activeTargets.ContainsKey(obj.tracking_id))
-                CreateTarget(obj.tracking_id, obj);
+            var id = obj.tracking_id;
+            seen.Add(id);
+            if (!_activeTargets.ContainsKey(id))
+                CreateTarget(id, obj);
             else
-                UpdateTarget(obj.tracking_id, obj);
+                UpdateTarget(id, obj);
         }
 
-        var toRemove = new List<string>();
-        foreach (var id in activeTargets.Keys)
+        foreach (var id in new List<string>(_activeTargets.Keys))
         {
-            if (!seenIds.Contains(id))
-                toRemove.Add(id);
-        }
-        foreach (var id in toRemove)
-        {
-            Destroy(activeTargets[id]);
-            activeTargets.Remove(id);
+            if (!seen.Contains(id))
+            {
+                Destroy(_activeTargets[id]);
+                _activeTargets.Remove(id);
+            }
         }
     }
 
@@ -89,26 +117,31 @@ public class DetectionVisualizer : MonoBehaviour
         sphere.transform.localScale = Vector3.one * scale;
         if (targetMaterial != null)
             sphere.GetComponent<Renderer>().material = targetMaterial;
-
-        activeTargets[id] = sphere;
+        _activeTargets[id] = sphere;
         UpdateTarget(id, obj);
     }
 
     void UpdateTarget(string id, Detection obj)
     {
-        if (activeTargets.TryGetValue(id, out var sphere))
-            sphere.transform.position = new Vector3(obj.x, obj.z, obj.y) * worldScale;
+        _activeTargets[id].transform.position = new Vector3(obj.x, obj.z, obj.y);
     }
 
-    [Serializable]
-    public class DetectionFrame
+    [Serializable] public class DetectionFrame
     {
         public double t;
         public Detection[] objects;
+        public AprilTag apriltag;
     }
 
-    [Serializable]
-    public class Detection
+    [Serializable] public class AprilTag
+    {
+        public int id;
+        public float x, y, z;
+        public float distance_m;
+        public float[] rvec;
+    }
+
+    [Serializable] public class Detection
     {
         public string tracking_id;
         public string class_id;
@@ -118,8 +151,7 @@ public class DetectionVisualizer : MonoBehaviour
         public BBox bbox;
     }
 
-    [Serializable]
-    public class BBox
+    [Serializable] public class BBox
     {
         public float u_norm, v_norm, w_norm, h_norm;
     }
