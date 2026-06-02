@@ -1,0 +1,56 @@
+mono:
+  device: "0"
+  horizontal_fov_deg: 89.0
+  calibration_file: config/mono_calibration.yaml
+
+capture:
+  width: 1280
+  height: 720
+  fps: 30.0
+
+pose:
+  # Camera Unity transform: pos(-16.2, 25.1, -26.2) rot(-16.55, -8.7, 2.48)
+  # Converted to server frame: pos=[Unity.z, -Unity.x, Unity.y], rpy=[roll=Z, pitch=X, yaw=Y]
+  position_m: [-26.2, 16.2, 25.1]
+  rpy_deg: [2.48, -16.55, -8.7]
+  mount_rpy_deg: [0.0, 0.0, 0.0]
+
+detector:
+  model_path: yolov8n.pt
+  confidence_threshold: 0.35
+  iou_threshold: 0.5
+  imgsz: 640
+  device: ""
+  allowed_classes: [person]
+
+photonvision:
+  enabled: true
+  # Camera name exactly as it appears in the PhotonVision UI.
+  camera_name: "detector_pose"
+  poll_hz: 20.0
+  # Tag world poses in Unity frame — same values as the AprilTag Anchor object.
+  tags:
+    - id: 1
+      unity_pos: [0.98, 22.29, -22.68]
+      unity_euler: [0.0, -8.35, 0.0]
+
+apriltag:
+  enabled: true
+  tag_id: 1
+  tag_size_m: 0.10
+  # Tag world pose in Unity frame (from Inspector: AprilTag Anchor object).
+  # Server uses this to compute camera world pose when the tag is detected.
+  unity_world_pos: [0.98, 22.29, -22.68]
+  unity_world_euler: [0.0, -8.35, 0.0]
+
+# roboflow:
+#   api_url: https://serverless.roboflow.com
+#   api_key: PF8d84a4csEbSZ4LO4F5
+#   model_id: retailshop-1gysu/4
+
+server:
+  host: 0.0.0.0
+  port: 8765
+  detection_rate_hz: 10.0
+  video_rate_hz: 15.0
+  video_jpeg_quality: 75

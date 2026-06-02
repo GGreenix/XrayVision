@@ -5,10 +5,12 @@ Endpoints:
     GET  /video.mjpg     -> multipart MJPEG of the rectified left feed
                             (also viewable in any browser)
     GET  /pose           -> JSON of the configured static camera pose
+    GET  /apriltag       -> JSON of the latest AprilTag pose (or null)
     WS   /stream         -> JSON detections, one frame per detector cycle
                             { "t": 1700000000.123,
                               "objects": [ {tracking_id, class_id, confidence,
-                                            x, y, z, depth_m, bbox}, ... ] }
+                                            x, y, z, depth_m, bbox}, ... ],
+                              "apriltag": {id, x, y, z, distance_m, rvec} | null }
 """
 
 import asyncio
@@ -24,13 +26,13 @@ from aiohttp import WSMsgType, web
 STALE_FRAME_THRESHOLD_S = 2.0
 
 from xray_pi.detector import DepthDetector, StaticPose
-from xray_pi.stereo import StereoPipeline
+from xray_pi.mono import MonoPipeline
 
 
 class Server:
     def __init__(
         self,
-        stereo: StereoPipeline,
+        stereo: MonoPipeline,
         detector: DepthDetector,
         pose: StaticPose,
         host: str,
@@ -38,17 +40,24 @@ class Server:
         detection_rate_hz: float,
         video_jpeg_quality: int,
         video_rate_hz: float,
+        bbox_filter: dict | None = None,
+        apriltag_detector=None,
+        pv_reader=None,
     ) -> None:
         self.stereo = stereo
         self.detector = detector
         self.pose = pose
+        self.apriltag_detector = apriltag_detector
+        self.pv_reader = pv_reader
         self.host = host
         self.port = port
         self.detection_period = 1.0 / detection_rate_hz
         self.video_period = 1.0 / video_rate_hz
         self.video_jpeg_quality = video_jpeg_quality
 
+        self._bbox_filter = bbox_filter or {"min_w": 0, "max_w": 100, "min_h": 0, "max_h": 100}
         self._latest_detections: dict = {"t": 0.0, "objects": []}
+        self._latest_apriltag = None  # AprilTagPose | None
         self._detection_subscribers: set[web.WebSocketResponse] = set()
         self._lock = asyncio.Lock()
         self._no_signal_jpeg = _make_no_signal_jpeg(video_jpeg_quality)
@@ -62,6 +71,7 @@ class Server:
         self.app.router.add_get("/video/left_rect.mjpg", self._video_left_rect)
         self.app.router.add_get("/video/right_rect.mjpg", self._video_right_rect)
         self.app.router.add_get("/pose", self._pose)
+        self.app.router.add_get("/apriltag", self._apriltag)
         self.app.router.add_get("/stream", self._stream_ws)
 
     async def run(self) -> None:
@@ -81,13 +91,46 @@ class Server:
         while True:
             start = time.monotonic()
             frame = self.stereo.get_latest()
+
+            detections: list[dict] = []
+            tag = None
             if frame is not None:
                 # YOLO is heavy — run it off the asyncio thread.
                 detections = await loop.run_in_executor(None, self.detector.process, frame)
-                payload = {"t": frame.timestamp, "objects": detections}
-                async with self._lock:
-                    self._latest_detections = payload
-                await self._broadcast(payload)
+                f = self._bbox_filter
+                min_w, max_w = f["min_w"] / 100.0, f["max_w"] / 100.0
+                min_h, max_h = f["min_h"] / 100.0, f["max_h"] / 100.0
+                detections = [
+                    d for d in detections
+                    if min_w <= d["bbox"]["w_norm"] <= max_w
+                    and min_h <= d["bbox"]["h_norm"] <= max_h
+                ]
+
+                if self.apriltag_detector is not None:
+                    tag = await loop.run_in_executor(
+                        None, self.apriltag_detector.detect, frame
+                    )
+                    self._latest_apriltag = tag
+                    if tag is not None and self.apriltag_detector.tag_world_pos is not None:
+                        pos, wfb = tag.camera_world_pose_server(
+                            self.apriltag_detector.tag_world_pos,
+                            self.apriltag_detector.tag_world_euler,
+                        )
+                        self.detector.update_camera_pose(pos, wfb)
+
+            # Always broadcast — even with no XrayVision frame — so the last-known
+            # PhotonVision camera pose keeps flowing to Unity while the camera is
+            # handed to PhotonVision.
+            payload = {
+                "t": frame.timestamp if frame is not None else time.time(),
+                "objects": detections,
+                "apriltag": tag.to_dict() if tag is not None else None,
+                "camera": self.pv_reader.last_unity_pose if self.pv_reader is not None else None,
+            }
+            async with self._lock:
+                self._latest_detections = payload
+            await self._broadcast(payload)
+
             elapsed = time.monotonic() - start
             await asyncio.sleep(max(0.0, self.detection_period - elapsed))
 
@@ -103,6 +146,12 @@ class Server:
                 dead.append(ws)
         for ws in dead:
             self._detection_subscribers.discard(ws)
+
+    def get_latest_detections(self) -> list[dict]:
+        return self._latest_detections.get("objects", [])
+
+    def get_latest_apriltag(self):
+        return self._latest_apriltag
 
     async def _healthz(self, request: web.Request) -> web.Response:
         frame = self.stereo.get_latest()
@@ -122,6 +171,10 @@ class Server:
             "rpy_deg": list(self.pose.rpy_deg),
             "mount_rpy_deg": list(self.pose.mount_rpy_deg),
         })
+
+    async def _apriltag(self, request: web.Request) -> web.Response:
+        tag = self._latest_apriltag
+        return web.json_response(tag.to_dict() if tag is not None else None)
 
     async def _video_mjpg(self, request: web.Request) -> web.StreamResponse:
         return await self._stream_view(request, lambda f: f.left_rect)
@@ -178,28 +231,8 @@ class Server:
                 last_ts = frame.timestamp
                 sent_no_signal = False
 
-                image_with_bboxes = image.copy()
-                async with self._lock:
-                    detections = self._latest_detections.get("objects", [])
-                for obj in detections:
-                    bbox = obj.get("bbox", {})
-                    u_norm = bbox.get("u_norm")
-                    v_norm = bbox.get("v_norm")
-                    w_norm = bbox.get("w_norm")
-                    h_norm = bbox.get("h_norm")
-                    if u_norm is not None and v_norm is not None and w_norm is not None and h_norm is not None:
-                        h, w = image_with_bboxes.shape[:2]
-                        x1 = int((u_norm - w_norm / 2) * w)
-                        y1 = int((v_norm - h_norm / 2) * h)
-                        x2 = int((u_norm + w_norm / 2) * w)
-                        y2 = int((v_norm + h_norm / 2) * h)
-                        cv2.rectangle(image_with_bboxes, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                        label = f"{obj.get('class_id', 'obj')} {obj.get('confidence', 0):.2f}"
-                        cv2.putText(image_with_bboxes, label, (x1, y1 - 5),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
-
                 jpeg = await loop.run_in_executor(
-                    None, _encode_jpeg, image_with_bboxes, self.video_jpeg_quality
+                    None, _encode_jpeg, image, self.video_jpeg_quality
                 )
                 if jpeg is None:
                     continue

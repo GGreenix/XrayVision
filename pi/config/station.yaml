@@ -14,17 +14,17 @@ mono:
   horizontal_fov_deg: 89.0
 
 capture:
-  # OV9281 native: 1280x800 mono global-shutter. Using 1280x720 to match calibration.
+  # OV9281 native: 1280x800 mono global-shutter.
   width: 1280
-  height: 720
+  height: 800
   fps: 30.0
   # Stable USB device paths. Many Arducam OV9281 modules ship with
   # identical USB serials, so /dev/v4l/by-id/ collides — use by-path
   # (identifies cameras by USB port). Find yours with:
   #   ls -l /dev/v4l/by-path/
   # Mark the physical USB ports LEFT/RIGHT so plugging never swaps them.
-  left_device:  /dev/v4l/by-path/platform-xhci-hcd.0-usb-0:1:1.0-video-index0
-  right_device: /dev/v4l/by-path/platform-xhci-hcd.1-usb-0:1:1.0-video-index0
+  left_device:  /dev/v4l/by-path/platform-xhci-hcd.1-usb-0:1:1.0-video-index0
+  right_device: /dev/v4l/by-path/platform-xhci-hcd.0-usb-0:1:1.0-video-index0
 
 sgbm:
   # 1=full res (very slow on Pi 5), 2=half (recommended), 3=third (fastest).
